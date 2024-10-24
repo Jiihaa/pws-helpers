@@ -1,3 +1,6 @@
+# Script to go through management groups and subs and find all RBAC assignments for a specific RBAC group
+# Ensure you are logged into Azure CLI
+
 param(
     [string]$GroupName,  # Name of the Azure AD group
     [string]$RootId      # ID of the Root Management Group (e.g., "/providers/Microsoft.Management/managementGroups/root")
