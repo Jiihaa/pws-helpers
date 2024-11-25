@@ -1,3 +1,5 @@
+# Show the latest API version for a given resource type and find outdated API versions in Bicep files
+
 param (
     [string]$resourceType  # Example: 'Microsoft.Storage/storageAccounts'
 )

@@ -1,6 +1,9 @@
 # Script to go through all subscriptions and find all direct RBAC assignments for users and groups
 # Ensure you are logged into Azure CLI
 
+# Login to Azure if not already logged in
+(az account show --query id 2>&1) -match "az login" -and (az login) | Out-Null
+
 # Initialize an empty array to store results
 $roleAssignmentsList = @()
 
