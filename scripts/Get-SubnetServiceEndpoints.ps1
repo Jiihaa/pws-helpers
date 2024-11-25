@@ -1,3 +1,8 @@
+# Script to list all Service Endpoints in all Virtual Networks in the subscription
+
+# Login to Azure if not already logged in
+(az account show --query id 2>&1) -match "az login" -and (az login) | Out-Null
+
 Write-Host "Getting all Virtual Networks in the subscriptions.."
 $vNets = az network vnet list --query "[].id" -o tsv
 

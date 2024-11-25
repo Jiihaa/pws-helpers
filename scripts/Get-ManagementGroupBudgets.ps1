@@ -1,3 +1,8 @@
+# Script to fetch all budgets for all management groups
+
+# Login to Azure if not already logged in
+(az account show --query id 2>&1) -match "az login" -and (az login) | Out-Null
+
 # Fetch all management groups
 $managementGroups = az account management-group entities list | ConvertFrom-Json
 

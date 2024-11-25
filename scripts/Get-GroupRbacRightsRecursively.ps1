@@ -6,11 +6,8 @@ param(
     [string]$RootId      # ID of the Root Management Group (e.g., "/providers/Microsoft.Management/managementGroups/root")
 )
 
-# Ensure you are logged in to Azure
-az account show 2>&1 | Out-Null
-if ($LASTEXITCODE -ne 0) {
-    az login
-}
+# Login to Azure if not already logged in
+(az account show --query id 2>&1) -match "az login" -and (az login) | Out-Null
 
 # Get the group object ID from Azure AD using the group name
 $groupId = az ad group show --group $GroupName --query id --output tsv

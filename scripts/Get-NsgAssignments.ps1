@@ -1,3 +1,8 @@
+# Script to check NSG assignments for all subnets in all virtual networks in an Azure subscription
+
+# Login to Azure if not already logged in
+(az account show --query id 2>&1) -match "az login" -and (az login) | Out-Null
+
 # Get all virtual networks in the subscription
 $vnetList = az network vnet list --query "[].{VNetName:name, ResourceGroup:resourceGroup}" -o json | ConvertFrom-Json
 
