@@ -3,6 +3,7 @@ Collection of PowerShell Core helper scripts for Azure
 
 | Script Name | Purpose | Parameters |
 |-------------|---------|------------|
+| Get-ActualCostsForMonth.ps1 | Get current Azure costs for the current month so far for all subscriptions |  |
 | Get-DirectRbacAssignments.ps1 | Find out recursively all the direct rights assigned to a RBAC group traversing from top management group |  |
 | Get-GroupRbacRightsRecursively.ps1 | Find out recursively all the rights assigned to a RBAC group traversing from top management group | `GroupName`, `RootId` |
 | Get-ManagementGroupBudgets.ps1 | Find out all budgets set to management groups |  |
