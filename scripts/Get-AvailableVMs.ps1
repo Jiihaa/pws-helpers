@@ -10,7 +10,8 @@ param (
     [bool]$EphemeralOSDisk,
     [bool]$PremiumIO,
     [bool]$CapacityReservation,
-    [string]$Family
+    [string]$Family,
+    [switch]$Latest
 
 )
 
@@ -26,7 +27,8 @@ if (-not $PSBoundParameters.ContainsKey("Cores") -and -not $PSBoundParameters.Co
     -not $PSBoundParameters.ContainsKey("AcceleratedNetworking") -and
     -not $PSBoundParameters.ContainsKey("EphemeralOSDisk") -and
     -not $PSBoundParameters.ContainsKey("PremiumIO") -and
-    -not $PSBoundParameters.ContainsKey("CapacityReservation")) {
+    -not $PSBoundParameters.ContainsKey("CapacityReservation") -and
+    -not $Latest) {
     Write-Error "At least one filter parameter must be provided."
     exit 1
 }
@@ -118,6 +120,35 @@ $filtered = $vmSkus | Where-Object {
     return $match
 }
 
+# Filter for latest versions if requested
+if ($Latest) {
+    
+    $filtered = $filtered | Group-Object { 
+        # Extract base family name by removing version and promo suffixes
+        $name = $_.Name -replace '^Standard_', ''
+        $baseName = $name -replace '_v\d+.*$', '' -replace '_Promo$', ''
+        return $baseName
+    } | ForEach-Object {
+        $familyName = $_.Name
+        $familyVMs = $_.Group
+        
+        # Group by version number
+        $versionGroups = $familyVMs | Group-Object {
+            $name = $_.Name -replace '^Standard_', ''
+            if ($name -match '_v(\d+)') {
+                [int]$matches[1]
+            } else {
+                1  # No version suffix means version 1
+            }
+        }
+        
+        # Get the highest version number and return all VMs with that version
+        $maxVersion = ($versionGroups | Measure-Object Name -Maximum).Maximum
+        $selectedVMs = ($versionGroups | Where-Object { [int]$_.Name -eq $maxVersion }).Group
+        
+        return $selectedVMs
+    }
+}
 
 $sorted = $filtered | Sort-Object Memory, Cores
 
