@@ -4,7 +4,7 @@ Collection of PowerShell Core helper scripts for Azure
 | Script Name | Purpose | Parameters |
 |-------------|---------|------------|
 | Get-ActualCostsForMonth.ps1 | Get current Azure costs for the current month so far for all subscriptions |  |
-| Get-AvailableVMs.ps1 | Filter and list available Azure VM sizes in a region based on CPU, memory, IOPS, NICs, features (like ephemeral disk, accelerated networking), and VM family | `Region`, `Mode`, `Cores`, `Memory`, `IOPS`, `NICs`, `AcceleratedNetworking`, `EphemeralOSDisk`, `CapacityReservation`, `Family` |
+| Get-AvailableVMs.ps1 | Filter and list available Azure VM sizes in a region based on CPU, memory, IOPS, NICs, features (like ephemeral disk, accelerated networking), and VM family | `Region`, `Mode`, `Cores`, `Memory`, `IOPS`, `NICs`, `AcceleratedNetworking`, `EphemeralOSDisk`, `PremiumIO` `CapacityReservation`, `Family` |
 | Get-DirectRbacAssignments.ps1 | Find out recursively all the direct rights assigned to a RBAC group traversing from top management group |  |
 | Get-GroupRbacRightsRecursively.ps1 | Find out recursively all the rights assigned to a RBAC group traversing from top management group | `GroupName`, `RootId` |
 | Get-ManagementGroupBudgets.ps1 | Find out all budgets set to management groups |  |

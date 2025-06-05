@@ -8,6 +8,7 @@ param (
     [int]$NICs,
     [bool]$AcceleratedNetworking,
     [bool]$EphemeralOSDisk,
+    [bool]$PremiumIO,
     [bool]$CapacityReservation,
     [string]$Family
 
@@ -24,6 +25,7 @@ if (-not $PSBoundParameters.ContainsKey("Cores") -and -not $PSBoundParameters.Co
     -not $PSBoundParameters.ContainsKey("IOPS") -and -not $PSBoundParameters.ContainsKey("NICs") -and
     -not $PSBoundParameters.ContainsKey("AcceleratedNetworking") -and
     -not $PSBoundParameters.ContainsKey("EphemeralOSDisk") -and
+    -not $PSBoundParameters.ContainsKey("PremiumIO") -and
     -not $PSBoundParameters.ContainsKey("CapacityReservation")) {
     Write-Error "At least one filter parameter must be provided."
     exit 1
@@ -44,6 +46,7 @@ $vmSkus = $rawSkus | Where-Object { $_.locations -contains $Region } | ForEach-O
     $skuIOPS      = ($capabilities | Where-Object { $_.name -eq "UncachedDiskIOPS" }).value
     $accelNet     = ($capabilities | Where-Object { $_.name -eq "AcceleratedNetworkingEnabled" }).value
     $ephemeral    = ($capabilities | Where-Object { $_.name -eq "EphemeralOSDiskSupported" }).value
+    $premiumIO    = ($capabilities | Where-Object { $_.name -eq "PremiumIO" }).value
     $reservation  = ($capabilities | Where-Object { $_.name -eq "CapacityReservationSupported" }).value
     $maxNics      = ($capabilities | Where-Object { $_.name -eq "MaxNetworkInterfaces" }).value
 
@@ -55,6 +58,7 @@ $vmSkus = $rawSkus | Where-Object { $_.locations -contains $Region } | ForEach-O
         IOPS                   = if ($skuIOPS) { [int]$skuIOPS } else { $null }
         AcceleratedNetworking  = if (![string]::IsNullOrWhiteSpace($accelNet)) { [bool]::Parse($accelNet) } else { $false }
         EphemeralOSDisk        = if (![string]::IsNullOrWhiteSpace($ephemeral)) { [bool]::Parse($ephemeral) } else { $false }
+        PremiumIO              = if (![string]::IsNullOrWhiteSpace($premiumIO)) { [bool]::Parse($premiumIO) } else { $false }
         CapacityReservation    = if (![string]::IsNullOrWhiteSpace($reservation)) { [bool]::Parse($reservation) } else { $false }
         MaxNICs                = if ($maxNics) { [int]$maxNics } else { $null }
         Family                 = $_.family
@@ -99,6 +103,9 @@ $filtered = $vmSkus | Where-Object {
     if ($PSBoundParameters.ContainsKey("EphemeralOSDisk")) {
         $match = $match -and ($_.EphemeralOSDisk -eq $EphemeralOSDisk)
     }
+    if ($PSBoundParameters.ContainsKey("PremiumIO")) {
+        $match = $match -and ($_.PremiumIO -eq $PremiumIO)
+    }
     if ($PSBoundParameters.ContainsKey("CapacityReservation")) {
         $match = $match -and ($_.CapacityReservation -eq $CapacityReservation)
     }
@@ -124,7 +131,7 @@ if ($sorted.Count -eq 0) {
             @{Name="ParsedFamily"; Expression={($_.Name -replace '^Standard_', '') -replace '^([A-Za-z]{1,2}).*', '$1'}},
             Cores,
             @{Name="MemoryGB"; Expression = { ($_.Memory.ToString("0.###")) }},
-            IOPS, AcceleratedNetworking, EphemeralOSDisk, CapacityReservation, MaxNICs, Family |
+            IOPS, AcceleratedNetworking, EphemeralOSDisk, PremiumIO, CapacityReservation, MaxNICs, Family |
         Format-Table -AutoSize
     }
 }
