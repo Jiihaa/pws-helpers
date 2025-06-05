@@ -6,7 +6,20 @@
 # Step 1: Select a Subscription
 Write-Host "Fetching subscriptions..." -ForegroundColor Green
 $subscriptions = az account list --query "[].{Name:name, Id:id}" | ConvertFrom-Json
-$selectedSubscription = $subscriptions | Out-GridView -Title "Select a Subscription" -PassThru
+
+if ($IsWindows) {
+    $selectedSubscription = $subscriptions | Out-GridView -Title "Select a Subscription" -PassThru
+} else {
+    Write-Host "Available subscriptions:" -ForegroundColor Green
+    for ($i = 0; $i -lt $subscriptions.Count; $i++) {
+        Write-Host "[$($i + 1)] $($subscriptions[$i].Name) ($($subscriptions[$i].Id))"
+    }
+    do {
+        $selection = Read-Host "Please select a subscription number (1-$($subscriptions.Count))"
+        $selectionIndex = [int]$selection - 1
+    } while ($selectionIndex -lt 0 -or $selectionIndex -ge $subscriptions.Count)
+    $selectedSubscription = $subscriptions[$selectionIndex]
+}
 
 if (-not $selectedSubscription) {
     Write-Host "No subscription selected. Exiting." -ForegroundColor Red
@@ -24,7 +37,19 @@ $resourceGroups = az group list --query "[].{Name:name}" | ConvertFrom-Json
 $allOption = [PSCustomObject]@{ Name = "All Resource Groups" }
 $resourceGroups = @($allOption) + $resourceGroups
 
-$selectedResourceGroup = $resourceGroups | Out-GridView -Title "Select a Resource Group" -PassThru
+if ($IsWindows) {
+    $selectedResourceGroup = $resourceGroups | Out-GridView -Title "Select a Resource Group" -PassThru
+} else {
+    Write-Host "Available resource groups:" -ForegroundColor Green
+    for ($i = 0; $i -lt $resourceGroups.Count; $i++) {
+        Write-Host "[$($i + 1)] $($resourceGroups[$i].Name)"
+    }
+    do {
+        $selection = Read-Host "Please select a resource group number (1-$($resourceGroups.Count))"
+        $selectionIndex = [int]$selection - 1
+    } while ($selectionIndex -lt 0 -or $selectionIndex -ge $resourceGroups.Count)
+    $selectedResourceGroup = $resourceGroups[$selectionIndex]
+}
 
 if (-not $selectedResourceGroup) {
     Write-Host "No resource group selected. Exiting." -ForegroundColor Red
@@ -53,7 +78,11 @@ if ($selectedResourceGroup.Name -eq "All Resource Groups") {
 
     # Output all role assignments to a single GridView
     if ($allRoleAssignments.Count -gt 0) {
-        $allRoleAssignments | Out-GridView -Title "All Role Assignments"
+        if ($IsWindows) {
+            $allRoleAssignments | Out-GridView -Title "All Role Assignments"
+        } else {
+            $allRoleAssignments | Format-Table -AutoSize
+        }
     } else {
         Write-Host "No role assignments found across all resource groups." -ForegroundColor Yellow
     }

@@ -41,6 +41,10 @@ foreach ($mg in $managementGroups) {
 if ($allBudgets.Count -eq 0) {
     Write-Host "No budgets found for any management groups." -ForegroundColor Yellow
 } else {
-    # Display the cleaned-up budgets in Out-GridView
-    $allBudgets | Out-GridView -Title "Budgets for Management Groups"
+    # Display the cleaned-up budgets
+    if ($IsWindows) {
+        $allBudgets | Out-GridView -Title "Budgets for Management Groups"
+    } else {
+        $allBudgets | Format-Table -AutoSize
+    }
 }

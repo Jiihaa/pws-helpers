@@ -83,5 +83,7 @@ $results += [PSCustomObject]@{
 # Output to console
 $results | Format-Table -AutoSize
 
-# Output to GridView
-$results | Out-GridView -Title "Azure Costs ($startDate to $endDate)"
+# Output to GridView (Windows only)
+if ($IsWindows) {
+    $results | Out-GridView -Title "Azure Costs ($startDate to $endDate)"
+}

@@ -66,10 +66,14 @@ $deletedAssignments = $allRoleAssignments | Where-Object {
     )
 }
 
-# Output results to Out-GridView with specific fields
+# Output results with specific fields
 if ($deletedAssignments.Count -eq 0) {
     Write-Host "No role assignments found for deleted identities in the root management group, other management groups, or subscriptions." -ForegroundColor Yellow
 } else {
     $filteredAssignments = $deletedAssignments | Select-Object principalId, principalType, roleDefinitionId, roleDefinitionName, scope
-    $filteredAssignments | Out-GridView -Title "Role Assignments for Deleted Identities"
+    if ($IsWindows) {
+        $filteredAssignments | Out-GridView -Title "Role Assignments for Deleted Identities"
+    } else {
+        $filteredAssignments | Format-Table -AutoSize
+    }
 }
