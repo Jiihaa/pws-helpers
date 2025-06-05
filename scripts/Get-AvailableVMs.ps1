@@ -1,21 +1,70 @@
 #!/usr/bin/env pwsh
 param (
     [string]$Region = "westeurope",
-    [ValidateSet("min", "exact")]
     [string]$Mode = "exact",
     [int]$Cores,
     [int]$Memory,
     [int]$IOPS,
     [int]$NICs,
-    [bool]$AcceleratedNetworking,
-    [bool]$EphemeralOSDisk,
-    [bool]$PremiumIO,
-    [bool]$CapacityReservation,
+    $AcceleratedNetworking,
+    $EphemeralOSDisk,
+    $PremiumIO,
+    $CapacityReservation,
+    $Available,
     [string]$Family,
     [switch]$Latest
 
 )
 
+# Normalize and validate parameters
+$Region = $Region.ToLower()
+$Mode = $Mode.ToLower()
+
+# Convert boolean-like parameters to actual booleans
+function ConvertTo-Boolean($value) {
+    if ($null -eq $value) { return $null }
+    if ($value -is [bool]) { return $value }
+    if ($value -is [int]) { return [bool]$value }
+    if ($value -is [string]) {
+        switch ($value.ToLower()) {
+            "true" { return $true }
+            "false" { return $false }
+            "1" { return $true }
+            "0" { return $false }
+            "`$true" { return $true }
+            "`$false" { return $false }
+            default { 
+                Write-Error "Invalid boolean value: '$value'. Use true/false, 1/0, or `$true/`$false"
+                exit 1
+            }
+        }
+    }
+    Write-Error "Cannot convert value '$value' to boolean"
+    exit 1
+}
+
+# Convert boolean parameters
+if ($PSBoundParameters.ContainsKey("AcceleratedNetworking")) {
+    $AcceleratedNetworking = ConvertTo-Boolean $AcceleratedNetworking
+}
+if ($PSBoundParameters.ContainsKey("EphemeralOSDisk")) {
+    $EphemeralOSDisk = ConvertTo-Boolean $EphemeralOSDisk
+}
+if ($PSBoundParameters.ContainsKey("PremiumIO")) {
+    $PremiumIO = ConvertTo-Boolean $PremiumIO
+}
+if ($PSBoundParameters.ContainsKey("CapacityReservation")) {
+    $CapacityReservation = ConvertTo-Boolean $CapacityReservation
+}
+if ($PSBoundParameters.ContainsKey("Available")) {
+    $Available = ConvertTo-Boolean $Available
+}
+
+# Validate Mode parameter
+if ($Mode -notin @("min", "exact")) {
+    Write-Error "Mode must be 'min' or 'exact' (case-insensitive). Provided value: '$Mode'"
+    exit 1
+}
 
 # Check Azure CLI
 if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
@@ -29,6 +78,7 @@ if (-not $PSBoundParameters.ContainsKey("Cores") -and -not $PSBoundParameters.Co
     -not $PSBoundParameters.ContainsKey("EphemeralOSDisk") -and
     -not $PSBoundParameters.ContainsKey("PremiumIO") -and
     -not $PSBoundParameters.ContainsKey("CapacityReservation") -and
+    -not $PSBoundParameters.ContainsKey("Available") -and
     -not $PSBoundParameters.ContainsKey("Family") -and
     -not $Latest) {
     Write-Error "At least one filter parameter must be provided."
@@ -53,7 +103,10 @@ try {
 }
 
 # Process SKUs
-$vmSkus = $rawSkus | Where-Object { $_.locations -contains $Region } | ForEach-Object {
+$vmSkus = $rawSkus | Where-Object { 
+    # Case-insensitive region comparison
+    $_.locations | ForEach-Object { $_.ToLower() } | Where-Object { $_ -eq $Region }
+} | ForEach-Object {
     $capabilities = $_.capabilities
 
     $skuCores     = ($capabilities | Where-Object { $_.name -eq "vCPUs" }).value
@@ -67,6 +120,13 @@ $vmSkus = $rawSkus | Where-Object { $_.locations -contains $Region } | ForEach-O
     $reservationValue = if ($reservationCap) { $reservationCap.value } else { $null }
     $maxNics      = ($capabilities | Where-Object { $_.name -eq "MaxNetworkInterfaces" }).value
 
+    # Check if VM is available for deployment (no location restrictions) - case-insensitive
+    $isAvailable = -not ($_.restrictions | Where-Object { 
+        $_.type -eq "Location" -and 
+        ($_.restrictionInfo.locations | ForEach-Object { $_.ToLower() } | Where-Object { $_ -eq $Region }) -and
+        ($_.reasonCode -eq "NotAvailableForSubscription" -or $_.reasonCode -eq "NotAvailableForRegion")
+    })
+
     [PSCustomObject]@{
         Name                   = $_.name
         Size                   = $_.size
@@ -78,6 +138,7 @@ $vmSkus = $rawSkus | Where-Object { $_.locations -contains $Region } | ForEach-O
         PremiumIO              = if (![string]::IsNullOrWhiteSpace($premiumIOValue)) { [bool]::Parse($premiumIOValue) } else { $false }
         CapacityReservation    = if (![string]::IsNullOrWhiteSpace($reservationValue)) { [bool]::Parse($reservationValue) } else { $false }
         MaxNICs                = if ($maxNics) { [int]$maxNics } else { $null }
+        Available              = $isAvailable
         Family                 = $_.family
     }
 
@@ -91,6 +152,7 @@ $filtered = $vmSkus | Where-Object {
         -not $PSBoundParameters.ContainsKey("EphemeralOSDisk") -and
         -not $PSBoundParameters.ContainsKey("PremiumIO") -and
         -not $PSBoundParameters.ContainsKey("CapacityReservation") -and
+        -not $PSBoundParameters.ContainsKey("Available") -and
         -not $PSBoundParameters.ContainsKey("Family")) {
         return $true
     }
@@ -137,6 +199,9 @@ $filtered = $vmSkus | Where-Object {
     if ($PSBoundParameters.ContainsKey("CapacityReservation")) {
         $match = $match -and ($_.CapacityReservation -eq $CapacityReservation)
     }
+    if ($PSBoundParameters.ContainsKey("Available")) {
+        $match = $match -and ($_.Available -eq $Available)
+    }
     if ($PSBoundParameters.ContainsKey("Family")) {
         $vmFamilyPrefix = ($_.Size -replace '^([A-Za-z]{1,2}).*', '$1')
 
@@ -180,14 +245,20 @@ $sorted = $filtered | Sort-Object Memory, Cores
 if ($sorted.Count -eq 0) {
     Write-Output "No VM sizes match the criteria."
 } else {
+    # Count available VMs vs total filtered VMs
+    $availableCount = ($sorted | Where-Object { $_.Available -eq $true }).Count
+    $totalCount = $sorted.Count
+    Write-Output "Available $availableCount/$totalCount VM sizes matching criteria in $Region"
+    Write-Output ""
+    
     if ($IsWindows) {
-        $sorted | Out-GridView -Title "Matching Azure VM Sizes in $Region"
+        $sorted | Out-GridView -Title "Matching Azure VM Sizes in $Region (Available: $availableCount/$totalCount)"
     } else {
         $sorted | Select-Object Name,
             @{Name="MainFamily"; Expression={($_.Name -replace '^Standard_', '') -replace '^([A-Za-z]{1,2}).*', '$1'}},
             Cores,
             @{Name="MemoryGB"; Expression = { ($_.Memory.ToString("0.###")) }},
-            IOPS, AcceleratedNetworking, EphemeralOSDisk, PremiumIO, CapacityReservation, MaxNICs, Family |
+            IOPS, AcceleratedNetworking, EphemeralOSDisk, PremiumIO, CapacityReservation, Available, MaxNICs, Family |
         Format-Table -AutoSize
     }
 }

@@ -23,8 +23,8 @@ This script helps you find Azure VM sizes that match your specific requirements.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `Region` | string | "westeurope" | Azure region to search for VM sizes (e.g., "northeurope", "eastus") |
-| `Mode` | string | "exact" | Filtering mode: **"exact"** (match exactly) or **"min"** (minimum requirements) |
+| `Region` | string | "westeurope" | Azure region to search for VM sizes (e.g., "northeurope", "eastus"). **Case-insensitive** |
+| `Mode` | string | "exact" | Filtering mode: **"exact"** (match exactly) or **"min"** (minimum requirements). **Case-insensitive** |
 
 ### Hardware Filtering Parameters
 
@@ -43,6 +43,7 @@ This script helps you find Azure VM sizes that match your specific requirements.
 | `EphemeralOSDisk` | bool | Filter by ephemeral OS disk support: `$true` (only VMs with support), `$false` (only VMs without support) |
 | `PremiumIO` | bool | Filter by Premium SSD support: `$true` (only VMs with support), `$false` (only VMs without support) |
 | `CapacityReservation` | bool | Filter by capacity reservation support: `$true` (only VMs with support), `$false` (only VMs without support) |
+| `Available` | bool | Filter by deployment availability: `$true` (only deployable VMs), `$false` (only restricted VMs) |
 
 ### VM Family and Version Parameters
 
@@ -57,8 +58,8 @@ This script helps you find Azure VM sizes that match your specific requirements.
 # Find VMs with exactly 4 cores and Premium IO support
 .\Get-AvailableVMs.ps1 -Cores 4 -PremiumIO $true
 
-# Find VMs with at least 8 cores and 16GB memory in North Europe
-.\Get-AvailableVMs.ps1 -Region northeurope -Mode min -Cores 8 -Memory 16
+# Find VMs with at least 8 cores and 16GB memory in North Europe (case-insensitive)
+.\Get-AvailableVMs.ps1 -Region "NorthEurope" -Mode "MIN" -Cores 8 -Memory 16
 
 # Find latest versions of D-series VMs with accelerated networking
 .\Get-AvailableVMs.ps1 -Family D -AcceleratedNetworking $true -Latest
@@ -66,13 +67,17 @@ This script helps you find Azure VM sizes that match your specific requirements.
 # Find VMs that support ephemeral OS disks with at least 2 NICs
 .\Get-AvailableVMs.ps1 -EphemeralOSDisk $true -Mode min -NICs 2
 
+# Show only VMs that are available for deployment in West Europe
+.\Get-AvailableVMs.ps1 -Region "westeurope" -Available $true
+
 # Show only the latest VM versions across all families
 .\Get-AvailableVMs.ps1 -Latest
 ```
 
 ### Output
 
-- **Windows**: Results displayed in interactive GridView
+- **Windows**: Results displayed in interactive GridView with availability counter in title
 - **macOS/Linux**: Results displayed as formatted table in terminal
+- **Availability Counter**: Shows "Available x/y VM sizes matching criteria" before results
 
-The output includes VM name, cores, memory, IOPS, and feature support columns to help you make informed decisions about VM sizing.
+The output includes VM name, cores, memory, IOPS, feature support columns, and deployment availability status to help you make informed decisions about VM sizing.
