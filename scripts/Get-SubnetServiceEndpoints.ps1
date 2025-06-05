@@ -38,9 +38,13 @@ foreach ($vNetId in $vNets) {
     }
 }
 
-# Output the results to Out-GridView
+# Output the results
 if ($serviceEndpoints.Count -eq 0) {
     Write-Output "No Service Endpoints found in the subscription."
 } else {
-    $serviceEndpoints | Out-GridView -Title "Service Endpoints in Virtual Networks"
+    if ($IsWindows) {
+        $serviceEndpoints | Out-GridView -Title "Service Endpoints in Virtual Networks"
+    } else {
+        $serviceEndpoints | Format-Table -AutoSize
+    }
 }

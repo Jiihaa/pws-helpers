@@ -73,5 +73,9 @@ foreach ($file in $files) {
 if ($results.Count -eq 0) {
     Write-Host "No API versions found in the Bicep files matching $resourceType." -ForegroundColor Yellow
 } else {
-    $results | Out-GridView -Title "API Versions Used for $resourceType (Latest: $latestApiVersion)"
+    if ($IsWindows) {
+        $results | Out-GridView -Title "API Versions Used for $resourceType (Latest: $latestApiVersion)"
+    } else {
+        $results | Format-Table -AutoSize
+    }
 }

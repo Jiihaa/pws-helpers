@@ -75,10 +75,14 @@ foreach ($mg in $managementGroups) {
     }
 }
 
-# Output results to Out-GridView with specific fields
+# Output results with specific fields
 if ($allRoleAssignments.Count -eq 0) {
     Write-Host "No role assignments found for the group '$GroupName' in the root management group, other management groups, or subscriptions." -ForegroundColor Yellow
 } else {
     $filteredAssignments = $allRoleAssignments | Select-Object principalId, principalName, roleDefinitionId, roleDefinitionName, scope
-    $filteredAssignments | Out-GridView -Title "Role Assignments for Group: $GroupName"
+    if ($IsWindows) {
+        $filteredAssignments | Out-GridView -Title "Role Assignments for Group: $GroupName"
+    } else {
+        $filteredAssignments | Format-Table -AutoSize
+    }
 }

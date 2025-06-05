@@ -27,9 +27,13 @@ foreach ($vnet in $vnetList) {
     }
 }
 
-# Display the results in Out-GridView
+# Display the results
 if ($subnetResults.Count -eq 0) {
     Write-Host "No virtual networks or subnets found." -ForegroundColor Yellow
 } else {
-    $subnetResults | Out-GridView -Title "Virtual Networks and Subnet NSG Assignments"
+    if ($IsWindows) {
+        $subnetResults | Out-GridView -Title "Virtual Networks and Subnet NSG Assignments"
+    } else {
+        $subnetResults | Format-Table -AutoSize
+    }
 }

@@ -50,4 +50,8 @@ foreach ($mg in $managementGroups) {
 }
 
 # Output to grid view
-$roleAssignmentsList | Out-GridView -Title "Direct User and Group Role Assignments at Subscription Level"
+if ($IsWindows) {
+    $roleAssignmentsList | Out-GridView -Title "Direct User and Group Role Assignments at Subscription Level"
+} else {
+    $roleAssignmentsList | Format-Table -AutoSize
+}
