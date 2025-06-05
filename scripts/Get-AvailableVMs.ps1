@@ -1,3 +1,4 @@
+#!/usr/bin/env pwsh
 param (
     [string]$Region = "westeurope",
     [ValidateSet("min", "exact")]
@@ -28,16 +29,28 @@ if (-not $PSBoundParameters.ContainsKey("Cores") -and -not $PSBoundParameters.Co
     -not $PSBoundParameters.ContainsKey("EphemeralOSDisk") -and
     -not $PSBoundParameters.ContainsKey("PremiumIO") -and
     -not $PSBoundParameters.ContainsKey("CapacityReservation") -and
+    -not $PSBoundParameters.ContainsKey("Family") -and
     -not $Latest) {
     Write-Error "At least one filter parameter must be provided."
     exit 1
 }
 
-
 Write-Output "Fetching VM SKUs for region '$Region'..."
 
-# Fetch VM SKUs
-$rawSkus = az vm list-skus --location $Region --resource-type "virtualMachines" --output json | ConvertFrom-Json
+# Fetch VM SKUs with better error handling for cross-platform compatibility
+$rawSkusJson = az vm list-skus --location $Region --resource-type "virtualMachines" --output json
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to fetch VM SKUs from Azure CLI. Please ensure you are logged in with 'az login'."
+    exit 1
+}
+
+# Handle JSON conversion with better cross-platform support
+try {
+    $rawSkus = $rawSkusJson | ConvertFrom-Json -Depth 10
+} catch {
+    Write-Error "Failed to parse VM SKU data. Error: $($_.Exception.Message)"
+    exit 1
+}
 
 # Process SKUs
 $vmSkus = $rawSkus | Where-Object { $_.locations -contains $Region } | ForEach-Object {
@@ -48,20 +61,22 @@ $vmSkus = $rawSkus | Where-Object { $_.locations -contains $Region } | ForEach-O
     $skuIOPS      = ($capabilities | Where-Object { $_.name -eq "UncachedDiskIOPS" }).value
     $accelNet     = ($capabilities | Where-Object { $_.name -eq "AcceleratedNetworkingEnabled" }).value
     $ephemeral    = ($capabilities | Where-Object { $_.name -eq "EphemeralOSDiskSupported" }).value
-    $premiumIO    = ($capabilities | Where-Object { $_.name -eq "PremiumIO" }).value
-    $reservation  = ($capabilities | Where-Object { $_.name -eq "CapacityReservationSupported" }).value
+    $premiumIOCap = ($capabilities | Where-Object { $_.name -eq "PremiumIO" })
+    $premiumIOValue = if ($premiumIOCap) { $premiumIOCap.value } else { $null }
+    $reservationCap = ($capabilities | Where-Object { $_.name -eq "CapacityReservationSupported" })
+    $reservationValue = if ($reservationCap) { $reservationCap.value } else { $null }
     $maxNics      = ($capabilities | Where-Object { $_.name -eq "MaxNetworkInterfaces" }).value
 
     [PSCustomObject]@{
         Name                   = $_.name
-        Size                   = $_.size  # ← add this line
+        Size                   = $_.size
         Cores                  = [int]$skuCores
         Memory                 = [double]$skuMemory
         IOPS                   = if ($skuIOPS) { [int]$skuIOPS } else { $null }
         AcceleratedNetworking  = if (![string]::IsNullOrWhiteSpace($accelNet)) { [bool]::Parse($accelNet) } else { $false }
         EphemeralOSDisk        = if (![string]::IsNullOrWhiteSpace($ephemeral)) { [bool]::Parse($ephemeral) } else { $false }
-        PremiumIO              = if (![string]::IsNullOrWhiteSpace($premiumIO)) { [bool]::Parse($premiumIO) } else { $false }
-        CapacityReservation    = if (![string]::IsNullOrWhiteSpace($reservation)) { [bool]::Parse($reservation) } else { $false }
+        PremiumIO              = if (![string]::IsNullOrWhiteSpace($premiumIOValue)) { [bool]::Parse($premiumIOValue) } else { $false }
+        CapacityReservation    = if (![string]::IsNullOrWhiteSpace($reservationValue)) { [bool]::Parse($reservationValue) } else { $false }
         MaxNICs                = if ($maxNics) { [int]$maxNics } else { $null }
         Family                 = $_.family
     }
@@ -69,6 +84,17 @@ $vmSkus = $rawSkus | Where-Object { $_.locations -contains $Region } | ForEach-O
 }
 
 $filtered = $vmSkus | Where-Object {
+    # If only -Latest is specified, include all VMs (no filtering)
+    if ($Latest -and -not $PSBoundParameters.ContainsKey("Cores") -and -not $PSBoundParameters.ContainsKey("Memory") -and
+        -not $PSBoundParameters.ContainsKey("IOPS") -and -not $PSBoundParameters.ContainsKey("NICs") -and
+        -not $PSBoundParameters.ContainsKey("AcceleratedNetworking") -and
+        -not $PSBoundParameters.ContainsKey("EphemeralOSDisk") -and
+        -not $PSBoundParameters.ContainsKey("PremiumIO") -and
+        -not $PSBoundParameters.ContainsKey("CapacityReservation") -and
+        -not $PSBoundParameters.ContainsKey("Family")) {
+        return $true
+    }
+
     $match = $true
 
     if ($Mode -eq "exact") {
@@ -129,7 +155,6 @@ if ($Latest) {
         $baseName = $name -replace '_v\d+.*$', '' -replace '_Promo$', ''
         return $baseName
     } | ForEach-Object {
-        $familyName = $_.Name
         $familyVMs = $_.Group
         
         # Group by version number
@@ -159,7 +184,7 @@ if ($sorted.Count -eq 0) {
         $sorted | Out-GridView -Title "Matching Azure VM Sizes in $Region"
     } else {
         $sorted | Select-Object Name,
-            @{Name="ParsedFamily"; Expression={($_.Name -replace '^Standard_', '') -replace '^([A-Za-z]{1,2}).*', '$1'}},
+            @{Name="MainFamily"; Expression={($_.Name -replace '^Standard_', '') -replace '^([A-Za-z]{1,2}).*', '$1'}},
             Cores,
             @{Name="MemoryGB"; Expression = { ($_.Memory.ToString("0.###")) }},
             IOPS, AcceleratedNetworking, EphemeralOSDisk, PremiumIO, CapacityReservation, MaxNICs, Family |
