@@ -13,7 +13,6 @@ Collection of PowerShell Core helper scripts for Azure
 | Get-RoleAssigments.ps1 | Fetch role assignments for a resource group/all resource groups in subscription | |
 | Get-SubnetServiceEndpoints.ps1 | List all service endpoints defined in all subnets |  |
 | Get-TenantId.ps1 | Retrieve Azure AD tenant ID for a given domain name | `Domain` (Example: `contoso.com`) |
-| New-RoleDefinitionBicepMap.ps1 | Create a bicep file with Role variable that gives readable name to every Azure RBAC role, which you can then import to your bicep, and instead of writing a guid, you can write for example `Role.AcrPush` instead of `8311e382-0749-4cb8-b61a-304f252e45ec` |  |
 | Test-BicepApiVersion.ps1 | Find out which of your Bicep files are not using the latest API version for a certain resource provider. Be aware, that latest API isn't always the best, but this will give you list you can check yourself | `resourceType` (Example: `Microsoft.Storage/storageAccounts`) |
 
 ## Get-AvailableVMs.ps1 Parameters
