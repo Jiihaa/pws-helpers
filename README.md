@@ -12,7 +12,8 @@ Collection of PowerShell Core helper scripts for Azure
 | Get-OrphanAssignments.ps1 | Find all RBAC assignments to deleted identities in management groups and subscriptions |  |
 | Get-RoleAssigments.ps1 | Fetch role assignments for a resource group/all resource groups in subscription | |
 | Get-SubnetServiceEndpoints.ps1 | List all service endpoints defined in all subnets |  |
-| New-RoleDefinitionBicepMap.ps1 | Create a bicep file with Role variable that gives readable name to every Azure RBAC role, which you can then import to your bicep, and instead of writing a guid, you can write for example Role.AcrPush instead of '8311e382-0749-4cb8-b61a-304f252e45ec' |  |
+| Get-TenantId.ps1 | Retrieve Azure AD tenant ID for a given domain name | `Domain` (Example: `contoso.com`) |
+| New-RoleDefinitionBicepMap.ps1 | Create a bicep file with Role variable that gives readable name to every Azure RBAC role, which you can then import to your bicep, and instead of writing a guid, you can write for example `Role.AcrPush` instead of `8311e382-0749-4cb8-b61a-304f252e45ec` |  |
 | Test-BicepApiVersion.ps1 | Find out which of your Bicep files are not using the latest API version for a certain resource provider. Be aware, that latest API isn't always the best, but this will give you list you can check yourself | `resourceType` (Example: `Microsoft.Storage/storageAccounts`) |
 
 ## Get-AvailableVMs.ps1 Parameters
@@ -81,3 +82,38 @@ This script helps you find Azure VM sizes that match your specific requirements.
 - **Availability Counter**: Shows "Available x/y VM sizes matching criteria" before results
 
 The output includes VM name, cores, memory, IOPS, feature support columns, and deployment availability status to help you make informed decisions about VM sizing.
+
+## Get-TenantId.ps1 Parameters
+
+This script retrieves the Azure AD tenant ID for a given domain name using Microsoft's OpenID Connect discovery endpoint.
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `Domain` | string | Yes | The domain name to look up (e.g., "contoso.com", "microsoft.com") |
+
+### Usage Examples
+
+```powershell
+# Get tenant ID for a domain
+.\Get-TenantId.ps1 -Domain "contoso.com"
+
+# Get tenant ID for Microsoft's domain
+.\Get-TenantId.ps1 -Domain "microsoft.com"
+
+# Store tenant ID in a variable
+$tenantId = .\Get-TenantId.ps1 -Domain "yourdomain.com"
+```
+
+### Output
+
+The script outputs:
+- Success message with the domain and tenant ID
+- The tenant ID is returned as a GUID string
+- Error messages for invalid domains or network issues
+
+This is useful for:
+- Finding tenant IDs for Azure AD authentication
+- Validating that a domain is associated with an Azure AD tenant
+- Automating Azure AD configuration scripts
