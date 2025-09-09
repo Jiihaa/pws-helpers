@@ -1,4 +1,3 @@
-#!/usr/bin/env pwsh
 param (
     [string]$Region = "westeurope",
     [string]$Mode = "exact",
