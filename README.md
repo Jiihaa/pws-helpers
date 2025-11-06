@@ -9,6 +9,7 @@ Collection of PowerShell Core helper scripts for Azure
 | Get-GroupRbacRightsRecursively.ps1 | Find out recursively all the rights assigned to a RBAC group traversing from top management group | `GroupName`, `RootId` |
 | Get-ManagementGroupBudgets.ps1 | Find out all budgets set to management groups |  |
 | Get-NsgAssignments.ps1 | List all subnets and show if they have NSG assigned or not |  |
+| Get-OpenAIQuota.ps1 | Check Azure OpenAI quota usage and limits for a specific model in a given region | `Region`, `Model`, `SubscriptionId` (optional) |
 | Get-OrphanAssignments.ps1 | Find all RBAC assignments to deleted identities in management groups and subscriptions |  |
 | Get-RoleAssigments.ps1 | Fetch role assignments for a resource group/all resource groups in subscription | |
 | Get-SubnetServiceEndpoints.ps1 | List all service endpoints defined in all subnets |  |
@@ -81,6 +82,55 @@ This script helps you find Azure VM sizes that match your specific requirements.
 - **Availability Counter**: Shows "Available x/y VM sizes matching criteria" before results
 
 The output includes VM name, cores, memory, IOPS, feature support columns, and deployment availability status to help you make informed decisions about VM sizing.
+
+## Get-OpenAIQuota.ps1 Parameters
+
+This script checks Azure OpenAI quota usage and limits for a specific model in a given region using Azure CLI.
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `Region` | string | Yes | Azure region to check (e.g., "eastus", "westeurope"). Alias: `-r` |
+| `Model` | string | Yes | OpenAI model name (e.g., "OpenAI.GlobalStandard.gpt-4o"). Alias: `-m` |
+| `SubscriptionId` | string | No | Azure subscription ID. Uses current subscription if omitted |
+
+### Prerequisites
+
+- Azure CLI installed and available in PATH
+- User must be logged in via `az login`
+- Appropriate permissions to read Cognitive Services usage data
+
+### Usage Examples
+
+```powershell
+# Check GPT-4o quota in East US region
+.\Get-OpenAIQuota.ps1 -Region "eastus" -Model "OpenAI.GlobalStandard.gpt-4o"
+
+# Using aliases for shorter syntax
+.\Get-OpenAIQuota.ps1 -r "westeurope" -m "OpenAI.GlobalStandard.gpt-35-turbo"
+
+# Specify a different subscription
+.\Get-OpenAIQuota.ps1 -Region "eastus" -Model "OpenAI.GlobalStandard.gpt-4o" -SubscriptionId "12345678-1234-1234-1234-123456789012"
+```
+
+### Output
+
+The script displays:
+- Subscription information (name and ID)
+- Region and model details
+- Total quota limit
+- Current usage
+- Remaining quota available
+
+### Troubleshooting
+
+- If no usage data is found, verify the region name and ensure you have appropriate permissions
+- To see all available model names, run: `az cognitiveservices usage list --location <region> -o table`
+- Common model names include:
+  - `OpenAI.GlobalStandard.gpt-4o`
+  - `OpenAI.GlobalStandard.gpt-35-turbo`
+  - `OpenAI.GlobalStandard.gpt-4`
 
 ## Get-TenantId.ps1 Parameters
 
