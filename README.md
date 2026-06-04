@@ -5,7 +5,7 @@ Collection of PowerShell Core helper scripts for Azure
 |-------------|---------|------------|
 | Get-ActualCostsForMonth.ps1 | Get current Azure costs for the current month so far for all subscriptions |  |
 | Get-AvailableVMs.ps1 | Filter and list available Azure VM sizes in a region based on CPU, memory, IOPS, NICs, features (like ephemeral disk, accelerated networking), and VM family | See detailed parameter descriptions below |
-| Get-DirectRbacAssignments.ps1 | Find out recursively all the direct rights assigned to a RBAC group traversing from top management group |  |
+| Get-DirectRbacAssignments.ps1 | List direct RBAC assignments for users and groups across accessible subscriptions, including resource group and resource scopes | IncludePrincipalId (optional), UseManagementGroups (optional) |
 | Get-GroupRbacRightsRecursively.ps1 | Find out recursively all the rights assigned to a RBAC group traversing from top management group | `GroupName`, `RootId` |
 | Get-ManagementGroupBudgets.ps1 | Find out all budgets set to management groups |  |
 | Get-NsgAssignments.ps1 | List all subnets and show if they have NSG assigned or not |  |
@@ -15,6 +15,53 @@ Collection of PowerShell Core helper scripts for Azure
 | Get-SubnetServiceEndpoints.ps1 | List all service endpoints defined in all subnets |  |
 | Get-TenantId.ps1 | Retrieve Azure AD tenant ID for a given domain name | `Domain` (Example: `contoso.com`) |
 | Test-BicepApiVersion.ps1 | Find out which of your Bicep files are not using the latest API version for a certain resource provider. Be aware, that latest API isn't always the best, but this will give you list you can check yourself | `resourceType` (Example: `Microsoft.Storage/storageAccounts`) |
+
+## Get-DirectRbacAssignments.ps1 Parameters
+
+This script lists direct RBAC assignments for principal types User and Group across subscriptions. It includes assignments at subscription, resource group, and resource scope by using Azure CLI with the all option.
+
+By default, subscriptions are discovered from your current account context, which avoids requiring Microsoft.Management provider access.
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `IncludePrincipalId` | switch | No | Adds PrincipalId to output for audit-safe identity matching |
+| `UseManagementGroups` | switch | No | Uses management group traversal to discover subscriptions instead of account subscription list |
+
+### Prerequisites
+
+- Azure CLI installed and available in PATH
+- Logged in with `az login`
+- Permission to read role assignments in target subscriptions
+- If using `UseManagementGroups`, permission to read management groups and subscriptions under them (this mode may require Microsoft.Management provider registration/rights in some environments)
+
+### Behavior Notes
+
+- Disabled subscriptions are skipped automatically
+- Duplicate subscriptions discovered through multiple management groups are processed only once
+- Output includes: SubscriptionName, SubscriptionId, Scope, PrincipalName, Role, PrincipalType, and optionally PrincipalId
+
+### Usage Examples
+
+```powershell
+# Default mode: discover accessible subscriptions from current account context
+.\Get-DirectRbacAssignments.ps1
+
+# Include principalId for more reliable audit correlation
+.\Get-DirectRbacAssignments.ps1 -IncludePrincipalId
+
+# Optional: discover subscriptions by traversing management groups
+.\Get-DirectRbacAssignments.ps1 -UseManagementGroups
+
+# Combine both options
+.\Get-DirectRbacAssignments.ps1 -UseManagementGroups -IncludePrincipalId
+```
+
+### Output
+
+- Windows: results are shown in GridView
+- macOS/Linux: results are shown as a formatted table
 
 ## Get-AvailableVMs.ps1 Parameters
 
