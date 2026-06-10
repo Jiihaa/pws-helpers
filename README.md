@@ -5,7 +5,7 @@ Collection of PowerShell Core helper scripts for Azure
 |-------------|---------|------------|
 | Get-ActualCostsForMonth.ps1 | Get current Azure costs for the current month so far for all subscriptions |  |
 | Get-AvailableVMs.ps1 | Filter and list available Azure VM sizes in a region based on CPU, memory, IOPS, NICs, features (like ephemeral disk, accelerated networking), and VM family | See detailed parameter descriptions below |
-| Get-DirectRbacAssignments.ps1 | List direct RBAC assignments for users and groups across accessible subscriptions, including resource group and resource scopes | IncludePrincipalId (optional), UseManagementGroups (optional) |
+| Get-DirectRbacAssignments.ps1 | List direct RBAC assignments for users and groups across accessible subscriptions, including resource group and resource scopes | IncludePrincipalId (optional), ManagementGroupId (optional), BillingCsv (optional), Out (optional) |
 | Get-GroupRbacRightsRecursively.ps1 | Find out recursively all the rights assigned to a RBAC group traversing from top management group | `GroupName`, `RootId` |
 | Get-ManagementGroupBudgets.ps1 | Find out all budgets set to management groups |  |
 | Get-NsgAssignments.ps1 | List all subnets and show if they have NSG assigned or not |  |
@@ -27,20 +27,25 @@ By default, subscriptions are discovered from your current account context, whic
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `IncludePrincipalId` | switch | No | Adds PrincipalId to output for audit-safe identity matching |
-| `UseManagementGroups` | switch | No | Uses management group traversal to discover subscriptions instead of account subscription list |
+| `ManagementGroupId` | string | No | Limits discovery to one management group and all of its child management groups recursively |
+| `BillingCsv` | string | No | Reads subscription IDs from a billing export CSV and checks only subscriptions in the `ID` column |
+| `Out` | string | No | Writes results to a CSV file in the current working directory using the provided file name |
 
 ### Prerequisites
 
 - Azure CLI installed and available in PATH
 - Logged in with `az login`
 - Permission to read role assignments in target subscriptions
-- If using `UseManagementGroups`, permission to read management groups and subscriptions under them (this mode may require Microsoft.Management provider registration/rights in some environments)
+- If using `ManagementGroupId`, permission to read that management group subtree and its subscriptions (this mode may require Microsoft.Management provider registration/rights in some environments)
+- If using `BillingCsv`, a billing export CSV with an `ID` column containing subscription IDs
 
 ### Behavior Notes
 
 - Disabled subscriptions are skipped automatically
 - Duplicate subscriptions discovered through multiple management groups are processed only once
 - Output includes: SubscriptionName, SubscriptionId, Scope, PrincipalName, Role, PrincipalType, and optionally PrincipalId
+- When `BillingCsv` is used, the script only checks subscriptions from the CSV `ID` column and ignores the other discovery modes
+- When `Out` is used, the script also exports results to CSV in the current working directory
 
 ### Usage Examples
 
@@ -51,11 +56,23 @@ By default, subscriptions are discovered from your current account context, whic
 # Include principalId for more reliable audit correlation
 .\Get-DirectRbacAssignments.ps1 -IncludePrincipalId
 
-# Optional: discover subscriptions by traversing management groups
-.\Get-DirectRbacAssignments.ps1 -UseManagementGroups
+# Optional: discover subscriptions from a specific management group subtree
+.\Get-DirectRbacAssignments.ps1 -ManagementGroupId "contoso-platform"
+
+# Optional: use subscription IDs from a billing export CSV
+.\Get-DirectRbacAssignments.ps1 -BillingCsv "..\..\Subscriptions.csv"
 
 # Combine both options
-.\Get-DirectRbacAssignments.ps1 -UseManagementGroups -IncludePrincipalId
+.\Get-DirectRbacAssignments.ps1 -ManagementGroupId "contoso-platform" -IncludePrincipalId
+
+# Billing CSV with principalId included
+.\Get-DirectRbacAssignments.ps1 -BillingCsv "..\..\Subscriptions.csv" -IncludePrincipalId
+
+# Export to CSV in the current folder
+.\Get-DirectRbacAssignments.ps1 -Out "direct-rbac.csv"
+
+# Combine billing CSV and export file output
+.\Get-DirectRbacAssignments.ps1 -BillingCsv "..\..\Subscriptions.csv" -Out "direct-rbac.csv"
 ```
 
 ### Output
