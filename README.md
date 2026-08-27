@@ -4,9 +4,11 @@ Collection of PowerShell Core helper scripts for Azure
 | Script Name | Purpose | Parameters |
 |-------------|---------|------------|
 | Get-ActualCostsForMonth.ps1 | Get current Azure costs for the current month so far for all subscriptions |  |
+| Get-ADOInformation.ps1 | Count projects and users in one or more Azure DevOps organizations from a CSV of organization URLs using Entra ID / Azure CLI login | InputCsv, Out (optional) |
 | Get-AvailableVMs.ps1 | Filter and list available Azure VM sizes in a region based on CPU, memory, IOPS, NICs, features (like ephemeral disk, accelerated networking), and VM family | See detailed parameter descriptions below |
 | Get-DirectRbacAssignments.ps1 | List direct RBAC assignments for users and groups across accessible subscriptions, including resource group and resource scopes | IncludePrincipalId (optional), ManagementGroupId (optional), BillingCsv (optional), Out (optional) |
 | Get-GroupRbacRightsRecursively.ps1 | Find out recursively all the rights assigned to a RBAC group traversing from top management group | `GroupName`, `RootId` |
+| Get-InvalidUsers.ps1 | Resolve users from a CSV and mark each email as active, disabled, or not found in Entra ID | `InputCsv`, `Out` (optional) |
 | Get-ManagementGroupBudgets.ps1 | Find out all budgets set to management groups |  |
 | Get-NsgAssignments.ps1 | List all subnets and show if they have NSG assigned or not |  |
 | Get-OpenAIQuota.ps1 | Check Azure OpenAI quota usage and limits for a specific model in a given region | `Region`, `Model`, `SubscriptionId` (optional) |
@@ -16,6 +18,53 @@ Collection of PowerShell Core helper scripts for Azure
 | Get-TenantId.ps1 | Retrieve Azure AD tenant ID for a given domain name | `Domain` (Example: `contoso.com`) |
 | Get-UsersAndTheirManagers.ps1 | Resolve users from a CSV and export existing users with their managers plus a separate missing-users report | `InputCsv`, `ExistingOutputCsv` (optional), `MissingOutputCsv` (optional) |
 | Test-BicepApiVersion.ps1 | Find out which of your Bicep files are not using the latest API version for a certain resource provider. Be aware, that latest API isn't always the best, but this will give you list you can check yourself | `resourceType` (Example: `Microsoft.Storage/storageAccounts`) |
+
+## Get-ADOInformation.ps1 Parameters
+
+This script reads a CSV containing Azure DevOps organization URLs, then counts the number of projects and users in each organization using the Azure DevOps CLI under the current Azure login context.
+
+### Prerequisites
+
+- Azure CLI installed and available in PATH
+- Azure DevOps CLI extension installed:
+  ```powershell
+  az extension add --name azure-devops
+  ```
+- Logged in with `az login`
+- The signed-in identity must have access to the target Azure DevOps organizations
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `InputCsv` | string | Yes | Path to a CSV file containing Azure DevOps organization URLs |
+| `Out` | string | No | Writes the final summary to a CSV file in the current working directory |
+
+### Usage Examples
+
+```powershell
+# Install the required Azure DevOps CLI extension
+az extension add --name azure-devops
+
+# Sign in with your Entra account
+az login
+
+# Run against a CSV file of organization URLs
+.\Get-ADOInformation.ps1 -InputCsv ".\organizations.csv"
+
+# Export the results to a specific CSV file
+.\Get-ADOInformation.ps1 -InputCsv ".\organizations.csv" -Out ".\ado-org-summary.csv"
+```
+
+### Output
+
+The script exports a CSV file with:
+
+- `OrganizationUrl`
+- `ProjectCount`
+- `UserCount`
+
+If an organization cannot be queried, the row is still written and shows `No access` for the missing value(s).
 
 ## Get-DirectRbacAssignments.ps1 Parameters
 
@@ -147,6 +196,47 @@ This script helps you find Azure VM sizes that match your specific requirements.
 - **Availability Counter**: Shows "Available x/y VM sizes matching criteria" before results
 
 The output includes VM name, cores, memory, IOPS, feature support columns, and deployment availability status to help you make informed decisions about VM sizing.
+
+## Get-InvalidUsers.ps1 Parameters
+
+This script reads a CSV of email addresses, looks each one up in Entra ID through Microsoft Graph, and reports whether the user is active, disabled, or not found.
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `InputCsv` | string | Yes | Path to a CSV file containing an email column |
+| `Out` | string | No | Writes results to a CSV file in the current working directory using the provided file name |
+
+### Prerequisites
+
+- PowerShell 7+
+- Microsoft Graph PowerShell modules installed:
+  - `Microsoft.Graph.Authentication`
+  - `Microsoft.Graph.Users`
+- Permission to read users in Entra ID. The script requests `User.Read.All`.
+
+### Behavior Notes
+
+- The script auto-detects common email columns: `Email`, `Mail`, `UserPrincipalName`, and `UPN` variants
+- Output columns are: `Email`, `Name`, and `Status`
+- `Status` is one of: `active`, `disabled`, or `not found`
+- When `Out` is used, the script also exports results to CSV in the current working directory
+
+### Usage Examples
+
+```powershell
+# Check users from a CSV and show the results
+.\Get-InvalidUsers.ps1 -InputCsv ".\users.csv"
+
+# Export the results to a CSV in the current folder
+.\Get-InvalidUsers.ps1 -InputCsv ".\users.csv" -Out "invalid-users.csv"
+```
+
+### Output
+
+- Windows: results are shown in GridView
+- macOS/Linux: results are shown as a formatted table
 
 ## Get-OpenAIQuota.ps1 Parameters
 
