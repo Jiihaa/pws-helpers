@@ -10,10 +10,12 @@ Collection of PowerShell Core helper scripts for Azure
 | Get-AvailableVMs.ps1 | Filter and list available Azure VM sizes in a region based on CPU, memory, IOPS, NICs, features (like ephemeral disk, accelerated networking), and VM family | See detailed parameter descriptions below |
 | Get-DirectRbacAssignments.ps1 | List direct RBAC assignments for users and groups across accessible subscriptions, including resource group and resource scopes | IncludePrincipalId (optional), ManagementGroupId (optional), BillingCsv (optional), Out (optional) |
 | Get-GroupRbacRightsRecursively.ps1 | Find out recursively all the rights assigned to a RBAC group traversing from top management group | `GroupName`, `RootId` |
+| Get-InactiveUsers.ps1 | Check Microsoft Entra users and flag those with no successful sign-in recorded or no sign-in for more than one year |  |
 | Get-InvalidUsers.ps1 | Resolve users from a CSV and mark each email as active, disabled, or not found in Entra ID | `InputCsv`, `Out` (optional) |
 | Get-ManagementGroupBudgets.ps1 | Find out all budgets set to management groups |  |
 | Get-NsgAssignments.ps1 | List all subnets and show if they have NSG assigned or not |  |
 | Get-OpenAIQuota.ps1 | Check Azure OpenAI quota usage and limits for a specific model in a given region | `Region`, `Model`, `SubscriptionId` (optional) |
+| Get-OpenAIUsage.ps1 | Review Azure OpenAI deployments, capacity, and recent usage across accounts or regions | `SubscriptionId` (optional), `Region` (optional), `ModelContains` (optional), `OutFile` (optional), `SinceDays` (optional), `SinceMinutes` (optional), `Verbose` |
 | Get-OrphanAssignments.ps1 | Find all RBAC assignments to deleted identities in management groups and subscriptions |  |
 | Get-RoleAssigments.ps1 | Fetch role assignments for a resource group/all resource groups in subscription | |
 | Get-SubnetServiceEndpoints.ps1 | List all service endpoints defined in all subnets |  |
@@ -320,6 +322,35 @@ This script reads a CSV of email addresses, looks each one up in Entra ID throug
 - Windows: results are shown in GridView
 - macOS/Linux: results are shown as a formatted table
 
+## Get-InactiveUsers.ps1 Parameters
+
+This script connects to Microsoft Graph and lists Entra ID users whose last successful sign-in is missing or older than one year. It is a quick way to identify stale accounts and review user activity without any CSV input.
+
+### Prerequisites
+
+- PowerShell 7+
+- Microsoft Graph PowerShell module installed and accessible
+- Permission to read users and sign-in activity in Entra ID (`User.Read.All` and `AuditLog.Read.All`)
+- A valid Microsoft Graph session created with `Connect-MgGraph`
+
+### Usage Examples
+
+```powershell
+# Connect to Graph and show inactive users
+Connect-MgGraph -Scopes "User.Read.All","AuditLog.Read.All"
+.\Get-InactiveUsers.ps1
+```
+
+### Behavior Notes
+
+- The script evaluates users against a cutoff of one year from the current time in UTC
+- It reports:
+  - `No successful sign-in recorded`
+  - `Inactive > 1 year`
+  - `Active within 1 year`
+- Results are sorted by activity status, then by last successful sign-in timestamp
+- Output is displayed as a formatted PowerShell table
+
 ## Get-OpenAIQuota.ps1 Parameters
 
 This script checks Azure OpenAI quota usage and limits for a specific model in a given region using Azure CLI.
@@ -368,6 +399,69 @@ The script displays:
   - `OpenAI.GlobalStandard.gpt-4o`
   - `OpenAI.GlobalStandard.gpt-35-turbo`
   - `OpenAI.GlobalStandard.gpt-4`
+
+## Get-OpenAIUsage.ps1 Parameters
+
+This script inventories Azure OpenAI deployments in a subscription, summarizes deployment capacity, and shows recent request and token activity for each deployment. It is useful when you need to understand whether a deployment is active and how much capacity exists in a region or across the subscription.
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `SubscriptionId` | string | No | Azure subscription ID to inspect. Uses the current subscription if omitted |
+| `Region` | string | No | Filters Azure OpenAI accounts to a specific region |
+| `ModelContains` | string | No | Only include deployments whose model name contains the provided text, for example `gpt-4o` |
+| `OutFile` | string | No | Exports the per-deployment results to a CSV file |
+| `SinceDays` | int | No | Number of days to look back when collecting Azure Monitor metrics. Default: `30` |
+| `SinceMinutes` | int | No | Legacy alias for the recent-activity lookback window; retained for compatibility, but the script uses the day-based window for metrics collection. Default: `60` |
+| `Verbose` | switch | No | Shows discovery and progress details while enumerating accounts and deployments |
+
+### Prerequisites
+
+- Azure CLI installed and available in PATH
+- User must be logged in via `az login`
+- Appropriate permissions to list Azure Cognitive Services accounts and deployments
+- Permission to read Azure Monitor metrics for the target Azure OpenAI accounts
+
+### Behavior Notes
+
+- The script finds all Azure Cognitive Services accounts with kind `OpenAI`
+- Accounts can be filtered by region using `-Region`
+- Deployments are enumerated per account and optionally filtered by model name via `-ModelContains`
+- Recent activity uses Azure Monitor metrics for:
+  - `AzureOpenAIRequests`
+  - `InputTokens`
+  - `OutputTokens`
+- The output includes a per-deployment summary and an aggregated region-by-quota summary
+- When `-OutFile` is used, the detailed deployment rows are exported to CSV
+
+### Usage Examples
+
+```powershell
+# Review all OpenAI deployments in the current subscription
+.\Get-OpenAIUsage.ps1
+
+# Check deployments in a specific region only
+.\Get-OpenAIUsage.ps1 -Region "swedencentral"
+
+# Show deployments matching GPT-4o model names
+.\Get-OpenAIUsage.ps1 -ModelContains "gpt-4o"
+
+# Export the detailed deployment rows to CSV
+.\Get-OpenAIUsage.ps1 -OutFile ".\openai-usage.csv"
+
+# Scope to a specific subscription and specific region
+.\Get-OpenAIUsage.ps1 -SubscriptionId "12345678-1234-1234-1234-123456789012" -Region "eastus" -ModelContains "gpt-4o"
+```
+
+### Output
+
+The script prints:
+- Subscription name and ID
+- Matching OpenAI accounts and deployments
+- Per-deployment details including location, account, resource group, model, SKU, capacity, and recent request/token activity
+- A region and quota-key aggregation summary
+- A capacity-vs-subscription-usage status view for each region
 
 ## Get-TenantId.ps1 Parameters
 
