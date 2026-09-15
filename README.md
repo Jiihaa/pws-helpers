@@ -3,8 +3,10 @@ Collection of PowerShell Core helper scripts for Azure
 
 | Script Name | Purpose | Parameters |
 |-------------|---------|------------|
+| Convert-CsvToExcel.ps1 | Convert all CSV files in a folder to XLSX files | `Folder` (optional) |
 | Get-ActualCostsForMonth.ps1 | Get current Azure costs for the current month so far for all subscriptions |  |
 | Get-ADOInformation.ps1 | Count projects and users in one or more Azure DevOps organizations from a CSV of organization URLs using Entra ID / Azure CLI login | InputCsv, Out (optional) |
+| Get-LastADOProjectActivity.ps1 | Report the most recent activity date for every project in an Azure DevOps organization and the type of artifact that caused it | `Organization`, `Pat` (optional), `OutputCsv` (optional), `ThrottleLimit` (optional), `IncludeTfvc` (optional), `SkipRepoCommits` (optional), `ApiVersion` (optional) |
 | Get-AvailableVMs.ps1 | Filter and list available Azure VM sizes in a region based on CPU, memory, IOPS, NICs, features (like ephemeral disk, accelerated networking), and VM family | See detailed parameter descriptions below |
 | Get-DirectRbacAssignments.ps1 | List direct RBAC assignments for users and groups across accessible subscriptions, including resource group and resource scopes | IncludePrincipalId (optional), ManagementGroupId (optional), BillingCsv (optional), Out (optional) |
 | Get-GroupRbacRightsRecursively.ps1 | Find out recursively all the rights assigned to a RBAC group traversing from top management group | `GroupName`, `RootId` |
@@ -18,6 +20,86 @@ Collection of PowerShell Core helper scripts for Azure
 | Get-TenantId.ps1 | Retrieve Azure AD tenant ID for a given domain name | `Domain` (Example: `contoso.com`) |
 | Get-UsersAndTheirManagers.ps1 | Resolve users from a CSV and export existing users with their managers plus a separate missing-users report | `InputCsv`, `ExistingOutputCsv` (optional), `MissingOutputCsv` (optional) |
 | Test-BicepApiVersion.ps1 | Find out which of your Bicep files are not using the latest API version for a certain resource provider. Be aware, that latest API isn't always the best, but this will give you list you can check yourself | `resourceType` (Example: `Microsoft.Storage/storageAccounts`) |
+
+## Convert-CsvToExcel.ps1 Parameters
+
+This script converts every CSV file in a target folder to an XLSX workbook using Excel automation.
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `Folder` | string | No | Folder containing the CSV files to convert. Defaults to the script's own directory |
+
+### Usage Examples
+
+```powershell
+# Convert CSV files in the current script folder
+.\Convert-CsvToExcel.ps1
+
+# Convert CSV files from a specific directory
+.\Convert-CsvToExcel.ps1 -Folder "C:\Temp\CsvFiles"
+```
+
+### Notes
+
+- Existing XLSX files created from the same CSV names are overwritten.
+- The generated worksheet name is based on the CSV filename, with unsupported characters replaced.
+
+## Get-LastADOProjectActivity.ps1 Parameters
+
+This script reports the most recent activity date for every project in an Azure DevOps organization and identifies the type of artifact that produced that timestamp.
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `Organization` | string | Yes | Organization name or full URL, for example `contoso` or `https://dev.azure.com/contoso` |
+| `Pat` | string | No | Personal access token. Defaults to `$env:AZURE_DEVOPS_EXT_PAT` |
+| `OutputCsv` | string | No | Writes the results to a CSV file at the specified path |
+| `ThrottleLimit` | int | No | Max parallelism for project processing. Default is `8` |
+| `IncludeTfvc` | switch | No | Includes TFVC changesets in the activity check |
+| `SkipRepoCommits` | switch | No | Skips the expensive per-repository commit lookup |
+| `ApiVersion` | string | No | Azure DevOps REST API version. Default is `7.1` |
+
+### Prerequisites
+
+- Azure DevOps PAT with read-only access to the required scopes:
+  - Project and Team (Read)
+  - Code (Read)
+  - Build (Read)
+  - Release (Read)
+  - Work Items (Read)
+  - Wiki (Read)
+- The PAT can be passed with `-Pat` or stored in `$env:AZURE_DEVOPS_EXT_PAT`
+
+### Usage Examples
+
+```powershell
+# Use a PAT from the environment variable
+$env:AZURE_DEVOPS_EXT_PAT = 'xxxx'
+.\Get-LastADOProjectActivity.ps1 -Organization "contoso"
+
+# Write results to a CSV file
+.\Get-LastADOProjectActivity.ps1 -Organization "contoso" -OutputCsv ".\project-activity.csv"
+
+# Skip the expensive repo-commit scan for faster execution
+.\Get-LastADOProjectActivity.ps1 -Organization "contoso" -SkipRepoCommits
+
+# Include TFVC change history
+.\Get-LastADOProjectActivity.ps1 -Organization "contoso" -IncludeTfvc
+```
+
+### Output
+
+The script emits one row per project with fields such as:
+
+- `ProjectName`
+- `LastTouchedUtc`
+- `LastTouchedType`
+- `DaysSinceTouched`
+
+`LastTouchedType` indicates what kind of Azure DevOps activity produced the latest date, such as `PipelineRun`, `ReleaseDeployment`, `WorkItemUpdated`, `PullRequest`, `RepoCommit`, `WikiEdit`, or `ProjectMetadata`.
 
 ## Get-ADOInformation.ps1 Parameters
 
